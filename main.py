@@ -30,12 +30,13 @@ st.session_state["llm_model"] = "llama3-8b-8192"
 
 load_dotenv()
 
+api_key = os.environ.get("GROQ_API_KEY")
+if not api_key:
+    api_key = st.secrets("GROQ_API_KEY")
+
 raw_df = load_data()
 yearly_df = aggregate_yearly_data(raw_df)
 job_df = aggregate_job_data(raw_df)
-
-llm = ChatGroq(model=st.session_state.llm_model, api_key=os.environ.get("GROQ_API_KEY"))
-agent_executor = create_pandas_dataframe_agent(llm, raw_df, verbose=False, agent_executor_kwargs={"handle_parsing_errors": handle_error}, allow_dangerous_code=True)
 
 st.title('Salary Analysis')
 
@@ -49,23 +50,27 @@ if selected_row_idx:
 
 st.line_chart(yearly_df, x='work_year', y='average_salary')
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if api_key:
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-if prompt := st.chat_input("Enter your question here..."):
-    assistant_messages_container = st.chat_message("assistant")
-    user_messages_container = st.chat_message("user")
+    llm = ChatGroq(model=st.session_state.llm_model, api_key=api_key)
+    agent_executor = create_pandas_dataframe_agent(llm, raw_df, verbose=False, agent_executor_kwargs={"handle_parsing_errors": handle_error}, allow_dangerous_code=True)
 
-    user_messages_container.markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input("Enter your question here..."):
+        assistant_messages_container = st.chat_message("assistant")
+        user_messages_container = st.chat_message("user")
 
-    try:
-        response = agent_executor.invoke(prompt)
-        assistant_messages_container.markdown(response["output"])
-        st.session_state.messages.append({"role": "assistant", "content": response["output"]})
-    except Exception as e:
-        st.error(e)
+        user_messages_container.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        try:
+            response = agent_executor.invoke(prompt)
+            assistant_messages_container.markdown(response["output"])
+            st.session_state.messages.append({"role": "assistant", "content": response["output"]})
+        except Exception as e:
+            st.error(e)
