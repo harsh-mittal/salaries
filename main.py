@@ -20,7 +20,11 @@ def handle_error(error):
 
 @st.cache_data
 def aggregate_yearly_data(df):
-    return df.astype({'work_year': str}).groupby('work_year').agg(job_count=('work_year', 'size'), average_salary=('salary_in_usd', 'mean')).reset_index()
+    return df.astype({'work_year': str}) \
+            .groupby('work_year') \
+            .agg(job_count=('work_year', 'size'), average_salary=('salary_in_usd', 'mean')) \
+            .round({'average_salary': 0}) \
+            .reset_index()
 
 @st.cache_data
 def aggregate_job_data(df):
